@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+*.egg
+*.log
+
+# Virtual environment
+env/
+venv/
+ENV/
+.venv/
+
+# Django stuff
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+*.pot
+*.pyc
+
+# Migrations (optional, keep if you don’t want auto-generated files in repo)
+**/migrations/*.py
+!**/migrations/__init__.py
+
+# IDE/editor settings
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Environment variables
+.env
+*.env
+
+# Coverage/testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+
+# Node/npm stuff (if using frontend in same repo)
+node_modules/
+build/
+dist/
+
+# Vercel/Deployment
+.vercel/

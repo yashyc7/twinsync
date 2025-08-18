@@ -31,11 +31,21 @@ class InvitationAndAcceptViewset(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
-        description="Create an invitation code for a partner.",
-        responses={201: OpenApiResponse(response={"invite_code": "string"})},
-    )
+    description="Create an invitation code for a partner.",
+    responses={
+        201: OpenApiResponse(response={"invite_code": "string"}),
+        400: OpenApiResponse(response={"error": "You must unlink before creating a new invite"}),
+    },
+)
     @action(methods=["GET"], detail=False, url_path="create-invitation")
     def create_invitation(self, request):
+        # Check if user already has a partner linked
+        if PartnerLink.objects.filter(user=request.user).exists():
+            return Response(
+                {"error": "You must unlink before creating a new invite"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         invite = Invite.objects.create(created_by=request.user)
         return Response(
             {"invite_code": str(invite.code)}, status=status.HTTP_201_CREATED
@@ -191,30 +201,44 @@ class AuthViewSet(viewsets.ViewSet):
 
     @extend_schema(
         request=GoogleLoginSerializer,
-        responses={200: UserSerializer},
+        responses={
+            200: OpenApiResponse(response=UserSerializer, description="Google login successful"),
+            400: OpenApiResponse(description="Invalid Google token"),
+        },
     )
     @action(methods=["POST"], detail=False, url_path="google")
     def google_login(self, request):
         serializer = GoogleLoginSerializer(data=request.data)
-        if serializer.is_valid():
-            id_token_str = serializer.validated_data["id_token"]
+        serializer.is_valid(raise_exception=True)
+
+        id_token_str = serializer.validated_data["id_token"]
 
         try:
+            # Verify token with Google
             id_info = id_token.verify_oauth2_token(id_token_str, requests.Request())
 
             email = id_info.get("email")
             display_name = id_info.get("name")
+            firebase_uid = id_info.get("sub")  # unique Google account ID
 
+            # Create or update user
             user, created = User.objects.get_or_create(email=email)
             if created:
                 user.display_name = display_name
+                user.firebase_uid = firebase_uid
                 user.save()
+            else:
+                # Update firebase_uid if not already saved
+                if not user.firebase_uid:
+                    user.firebase_uid = firebase_uid
+                    user.save(update_fields=["firebase_uid"])
 
             tokens = get_tokens_for_user(user)
             return Response(
                 {"user": UserSerializer(user).data, "tokens": tokens},
                 status=status.HTTP_200_OK,
             )
+
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

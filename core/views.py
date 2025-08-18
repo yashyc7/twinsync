@@ -31,12 +31,14 @@ class InvitationAndAcceptViewset(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
-    description="Create an invitation code for a partner.",
-    responses={
-        201: OpenApiResponse(response={"invite_code": "string"}),
-        400: OpenApiResponse(response={"error": "You must unlink before creating a new invite"}),
-    },
-)
+        description="Create an invitation code for a partner.",
+        responses={
+            201: OpenApiResponse(response={"invite_code": "string"}),
+            400: OpenApiResponse(
+                response={"error": "You must unlink before creating a new invite"}
+            ),
+        },
+    )
     @action(methods=["GET"], detail=False, url_path="create-invitation")
     def create_invitation(self, request):
         # Check if user already has a partner linked
@@ -202,7 +204,9 @@ class AuthViewSet(viewsets.ViewSet):
     @extend_schema(
         request=GoogleLoginSerializer,
         responses={
-            200: OpenApiResponse(response=UserSerializer, description="Google login successful"),
+            200: OpenApiResponse(
+                response=UserSerializer, description="Google login successful"
+            ),
             400: OpenApiResponse(description="Invalid Google token"),
         },
     )

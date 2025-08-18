@@ -1,14 +1,22 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from core.models import Invite,PartnerLink,UserData
-from core.serializers import UserDataSerializer, UserSerializer,RegisterSerializer,LoginSerializer
-from rest_framework_simplejwt.tokens import RefreshToken,TokenError
+from core.models import Invite, PartnerLink, UserData
+from core.serializers import (
+    UserDataSerializer,
+    UserSerializer,
+    RegisterSerializer,
+    LoginSerializer,
+    AcceptInvitationSerializer,
+    GoogleLoginSerializer,
+)
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from django.contrib.auth import get_user_model
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 
-User=get_user_model()
+User = get_user_model()
 
 
 def get_tokens_for_user(user):
@@ -19,10 +27,13 @@ def get_tokens_for_user(user):
     }
 
 
-
 class InvitationAndAcceptViewset(viewsets.ViewSet):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        description="Create an invitation code for a partner.",
+        responses={201: OpenApiResponse(response={"invite_code": "string"})},
+    )
     @action(methods=["GET"], detail=False, url_path="create-invitation")
     def create_invitation(self, request):
         invite = Invite.objects.create(created_by=request.user)
@@ -30,9 +41,15 @@ class InvitationAndAcceptViewset(viewsets.ViewSet):
             {"invite_code": str(invite.code)}, status=status.HTTP_201_CREATED
         )
 
+    @extend_schema(
+        request=AcceptInvitationSerializer,
+        responses={200: OpenApiResponse(response={"message": "Linked successfully!"})},
+    )
     @action(methods=["POST"], detail=False, url_path="accept-invitation")
     def accept_invitation(self, request):
-        code = request.data.get("invite_code")
+        serializer = AcceptInvitationSerializer(data=request.data)
+        if serializer.is_valid():
+            code = serializer.validated_data["invite_code"]
         try:
             invite = Invite.objects.get(code=code, is_used=False)
         except Invite.DoesNotExist:
@@ -61,6 +78,14 @@ class InvitationAndAcceptViewset(viewsets.ViewSet):
         invite.save()
 
         return Response({"message": "Linked successfully!"}, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        description="Unlink the current user from their partner.",
+        responses={
+            200: OpenApiResponse(response={"message": "Unlinked successfully!"}),
+            400: OpenApiResponse(response={"error": "No partner linked"}),
+        },
+    )
     @action(methods=["DELETE"], detail=False, url_path="unlink")
     def unlink_partner(self, request):
         try:
@@ -72,13 +97,21 @@ class InvitationAndAcceptViewset(viewsets.ViewSet):
             PartnerLink.objects.filter(user=request.user).delete()
             PartnerLink.objects.filter(user=partner).delete()
 
-            return Response({"message": "Unlinked successfully!"}, status=status.HTTP_200_OK)
+            return Response(
+                {"message": "Unlinked successfully!"}, status=status.HTTP_200_OK
+            )
 
         except PartnerLink.DoesNotExist:
-            return Response({"error": "No partner linked"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "No partner linked"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class UserDataViewset(viewsets.ViewSet):
+    @extend_schema(
+        request=UserDataSerializer,
+        responses={201: UserDataSerializer},
+    )
     @action(methods=["POST"], detail=False, url_path="update")
     def update_data(self, request):
         user_data, _ = UserData.objects.get_or_create(user=request.user)
@@ -87,28 +120,47 @@ class UserDataViewset(viewsets.ViewSet):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        responses={200: UserDataSerializer},
+    )
+    @extend_schema(
+        responses={200: UserDataSerializer},
+    )
     @action(methods=["GET"], detail=False, url_path="partner-data")
     def partner_data(self, request):
         try:
             partner = request.user.user_link.partner
         except PartnerLink.DoesNotExist:
-            return Response({"error": "No partner linked"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "No partner linked"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         partner_data, _ = UserData.objects.get_or_create(user=partner)
         return Response(UserDataSerializer(partner_data).data)
 
+    @extend_schema(
+        responses={200: UserSerializer},
+    )
     @action(methods=["GET"], detail=False, url_path="partner-info")
     def partner_info(self, request):
         try:
             partner = request.user.user_link.partner
         except PartnerLink.DoesNotExist:
-            return Response({"error": "No partner linked"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "No partner linked"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         return Response(UserSerializer(partner).data)
+
 
 class AuthViewSet(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        request=RegisterSerializer,
+        responses={201: UserSerializer},
+    )
     @action(methods=["POST"], detail=False, url_path="register")
     def register(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -121,6 +173,10 @@ class AuthViewSet(viewsets.ViewSet):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(
+        request=LoginSerializer,
+        responses={200: UserSerializer},
+    )
     @action(methods=["POST"], detail=False, url_path="login")
     def login(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -133,11 +189,17 @@ class AuthViewSet(viewsets.ViewSet):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(
+        request=GoogleLoginSerializer,
+        responses={200: UserSerializer},
+    )
     @action(methods=["POST"], detail=False, url_path="google")
     def google_login(self, request):
-        id_token_str = request.data.get("id_token")
+        serializer = GoogleLoginSerializer(data=request.data)
+        if serializer.is_valid():
+            id_token_str = serializer.validated_data["id_token"]
+
         try:
-            
             id_info = id_token.verify_oauth2_token(id_token_str, requests.Request())
 
             email = id_info.get("email")
@@ -155,17 +217,26 @@ class AuthViewSet(viewsets.ViewSet):
             )
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
+
+    @extend_schema(
+        request={"type": "object", "properties": {"refresh": {"type": "string"}}},
+        responses={
+            205: OpenApiResponse(response={"message": "Logged out successfully"})
+        },
+    )
     @action(methods=["POST"], detail=False, url_path="logout")
     def logout(self, request):
         try:
             refresh_token = request.data["refresh"]
             token = RefreshToken(refresh_token)
             token.blacklist()
-            return Response({"message": "Logged out successfully"}, status=status.HTTP_205_RESET_CONTENT)
+            return Response(
+                {"message": "Logged out successfully"},
+                status=status.HTTP_205_RESET_CONTENT,
+            )
         except KeyError:
-            return Response({"error": "Refresh token required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Refresh token required"}, status=status.HTTP_400_BAD_REQUEST
+            )
         except TokenError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
-    

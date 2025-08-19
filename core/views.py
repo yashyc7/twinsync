@@ -81,6 +81,13 @@ class InvitationAndAcceptViewset(viewsets.ViewSet):
                 {"error": "This invite creator already has a partner"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
+        # 🚫 Prevent self-linking
+        if invite.created_by == request.user:
+            return Response(
+                {"error": "You cannot accept your own invite code"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Create mutual partner links
         PartnerLink.objects.create(user=request.user, partner=invite.created_by)

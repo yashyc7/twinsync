@@ -4,14 +4,22 @@ from core.models import UserData
 from django.contrib.auth import get_user_model, authenticate
 from rest_framework import status
 from rest_framework.response import Response
+from django.utils import timezone
 
 User = get_user_model()
 
 
 class UserDataSerializer(serializers.ModelSerializer):
+    updated_at = serializers.SerializerMethodField()  
     class Meta:
         model = UserData
         fields = ["battery", "steps", "gps_lat", "gps_lon", "mood", "updated_at"]
+    
+    def get_updated_at(self, obj):
+        if obj.updated_at:
+            # Format: "8:00 AM 20 August 2025"
+            return timezone.localtime(obj.updated_at).strftime("%-I:%M %p %d %B %Y")
+        return None
 
 
 class UserSerializer(serializers.ModelSerializer):

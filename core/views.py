@@ -262,19 +262,19 @@ class AuthViewSet(viewsets.ViewSet):
     )
     @action(methods=["POST"], detail=False, url_path="logout")
     def logout(self, request):
+        serializer = LogoutSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        refresh_token = serializer.validated_data["refresh"]
+
         try:
-            serializer=LogoutSerializer(data=request.data)
-            if serializer.is_valid():
-                refresh_token=serializer.validated_data["refresh"]
             token = RefreshToken(refresh_token)
             token.blacklist()
             return Response(
                 {"message": "Logged out successfully"},
                 status=status.HTTP_200_OK,
-            )
-        except KeyError:
-            return Response(
-                {"error": "Refresh token required"}, status=status.HTTP_400_BAD_REQUEST
             )
         except TokenError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

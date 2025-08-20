@@ -9,6 +9,7 @@ from core.serializers import (
     LoginSerializer,
     AcceptInvitationSerializer,
     GoogleLoginSerializer,
+    LogoutSerializer
 )
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from google.oauth2 import id_token
@@ -254,7 +255,7 @@ class AuthViewSet(viewsets.ViewSet):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(
-        request={"type": "object", "properties": {"refresh": {"type": "string"}}},
+        request=LogoutSerializer,
         responses={
             205: OpenApiResponse(response={"message": "Logged out successfully"})
         },
@@ -262,7 +263,9 @@ class AuthViewSet(viewsets.ViewSet):
     @action(methods=["POST"], detail=False, url_path="logout")
     def logout(self, request):
         try:
-            refresh_token = request.data["refresh"]
+            serializer=LogoutSerializer(data=request.data)
+            if serializer.is_valid():
+                refresh_token=serializer.validated_data["refresh"]
             token = RefreshToken(refresh_token)
             token.blacklist()
             return Response(

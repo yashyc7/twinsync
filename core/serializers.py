@@ -52,3 +52,7 @@ class GoogleLoginSerializer(serializers.Serializer):
 
 class AcceptInvitationSerializer(serializers.Serializer):
     invite_code = serializers.CharField()
+
+
+class LogoutSerializer(serializers.Serializer):
+    refresh=serializers.CharField()

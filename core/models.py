@@ -66,10 +66,4 @@ class UserData(models.Model):
     gps_lat = models.FloatField(null=True, blank=True)
     gps_lon = models.FloatField(null=True, blank=True)
     mood = models.CharField(max_length=50, blank=True, null=True)
-    updated_at = models.DateTimeField(null=True,blank=True)
-    
-    def save(self, *args, **kwargs):
-        # Always store IST instead of UTC
-        ist_time = now().astimezone(ZoneInfo("Asia/Kolkata"))
-        self.updated_at = ist_time
-        super().save(*args, **kwargs)
+    updated_at = models.DateTimeField(auto_now=True)

@@ -270,7 +270,7 @@ class AuthViewSet(viewsets.ViewSet):
             token.blacklist()
             return Response(
                 {"message": "Logged out successfully"},
-                status=status.HTTP_205_RESET_CONTENT,
+                status=status.HTTP_200_OK,
             )
         except KeyError:
             return Response(

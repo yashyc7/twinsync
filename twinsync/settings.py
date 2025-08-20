@@ -172,3 +172,6 @@ SPECTACULAR_SETTINGS = {
 }
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+TIME_ZONE = "Asia/Kolkata"
+USE_TZ = True

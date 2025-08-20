@@ -17,9 +17,12 @@ class UserDataSerializer(serializers.ModelSerializer):
     
     def get_updated_at(self, obj):
         if obj.updated_at:
-            # Format: "8:00 AM 20 August 2025"
-            return timezone.localtime(obj.updated_at).strftime("%-I:%M %p %d %B %Y")
+            dt = obj.updated_at
+            if timezone.is_naive(dt):
+                dt = timezone.make_aware(dt, timezone.get_current_timezone())
+            return timezone.localtime(dt).strftime("%I:%M %p %d %B %Y").lstrip("0")
         return None
+
 
 
 class UserSerializer(serializers.ModelSerializer):

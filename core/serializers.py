@@ -13,7 +13,7 @@ class UserDataSerializer(serializers.ModelSerializer):
     updated_at = serializers.SerializerMethodField()  
     class Meta:
         model = UserData
-        fields = ["battery", "steps", "gps_lat", "gps_lon", "mood", "updated_at"]
+        fields = ["battery", "gps_lat", "gps_lon", "mood", "updated_at"]
     
     def get_updated_at(self, obj):
         if obj.updated_at:

@@ -62,8 +62,20 @@ class Invite(models.Model):
 class UserData(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     battery = models.IntegerField(null=True, blank=True)
-    steps = models.IntegerField(null=True, blank=True)
     gps_lat = models.FloatField(null=True, blank=True)
     gps_lon = models.FloatField(null=True, blank=True)
     mood = models.CharField(max_length=50, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    
+class UserDataLogger(models.Model):
+    user_data = models.ForeignKey(UserData, on_delete=models.CASCADE, related_name="logs")
+    battery = models.IntegerField(null=True, blank=True)
+    gps_lat = models.FloatField(null=True, blank=True)
+    gps_lon = models.FloatField(null=True, blank=True)
+    mood = models.CharField(max_length=50, blank=True, null=True)
+    note = models.TextField(blank=True, null=True)
+    logged_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Log for {self.user_data.user.username} at {self.logged_at}"

@@ -16,6 +16,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests
 from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema, OpenApiResponse
+from .utils import create_user_data_log
 
 User = get_user_model()
 
@@ -135,10 +136,35 @@ class UserDataViewset(viewsets.ViewSet):
     @action(methods=["POST"], detail=False, url_path="update")
     def update_data(self, request):
         user_data, _ = UserData.objects.get_or_create(user=request.user)
+
         serializer = UserDataSerializer(user_data, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
+
+            # figure out which fields are updated
+            field_map = {
+                "battery": "Battery",
+                "gps_lat": "GPS Latitude",
+                "gps_lon": "GPS Longitude",
+                "mood": "Mood",
+            }
+            updated_fields = [field for field in field_map.keys() if field in request.data]
+
+            # build note string
+            if len(updated_fields) == 1:
+                note = f"{field_map[updated_fields[0]]} updated"
+            else:
+                note = ", ".join([field_map[f] for f in updated_fields]) + " updated"
+
+            # prepare kwargs only for updated fields
+            log_kwargs = {field: request.data.get(field) for field in updated_fields}
+            log_kwargs["note"] = note
+
+            # create log entry
+            create_user_data_log(user_data=user_data, **log_kwargs)
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(

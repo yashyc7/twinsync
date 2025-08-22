@@ -1,6 +1,7 @@
 from .models import UserDataLogger
 
-def create_user_data_log(user_data,**kwargs):
+
+def create_user_data_log(user_data, **kwargs):
     """
     Utility function to create a UserDataLogger entry.
 
@@ -15,7 +16,4 @@ def create_user_data_log(user_data,**kwargs):
     Returns:
         UserDataLogger: The created log entry.
     """
-    return UserDataLogger.objects.create(
-        user_data=user_data,
-        **kwargs
-    )
+    return UserDataLogger.objects.create(user_data=user_data, **kwargs)

@@ -9,7 +9,7 @@ from core.serializers import (
     LoginSerializer,
     AcceptInvitationSerializer,
     GoogleLoginSerializer,
-    LogoutSerializer
+    LogoutSerializer,
 )
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from google.oauth2 import id_token
@@ -83,7 +83,7 @@ class InvitationAndAcceptViewset(viewsets.ViewSet):
                 {"error": "This invite creator already has a partner"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         # 🚫 Prevent self-linking
         if invite.created_by == request.user:
             return Response(
@@ -148,7 +148,9 @@ class UserDataViewset(viewsets.ViewSet):
                 "gps_lon": "GPS Longitude",
                 "mood": "Mood",
             }
-            updated_fields = [field for field in field_map.keys() if field in request.data]
+            updated_fields = [
+                field for field in field_map.keys() if field in request.data
+            ]
 
             # build note string
             if len(updated_fields) == 1:
@@ -170,9 +172,6 @@ class UserDataViewset(viewsets.ViewSet):
     @extend_schema(
         responses={200: UserDataSerializer},
     )
-    @extend_schema(
-        responses={200: UserDataSerializer},
-    )
     @action(methods=["GET"], detail=False, url_path="partner-data")
     def partner_data(self, request):
         try:
@@ -183,7 +182,14 @@ class UserDataViewset(viewsets.ViewSet):
             )
 
         partner_data, _ = UserData.objects.get_or_create(user=partner)
-        return Response(UserDataSerializer(partner_data).data)
+        response_data = UserDataSerializer(partner_data).data
+
+        # Adding the self current mood to it
+        userdata, _ = UserData.objects.get_or_create(user=request.user)
+        response_data["self_mood"] = userdata.mood
+        response_data["display_name"] = partner_data.user.display_name
+
+        return Response(response_data)
 
     @extend_schema(
         responses={200: UserSerializer},

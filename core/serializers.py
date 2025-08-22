@@ -10,11 +10,12 @@ User = get_user_model()
 
 
 class UserDataSerializer(serializers.ModelSerializer):
-    updated_at = serializers.SerializerMethodField()  
+    updated_at = serializers.SerializerMethodField()
+
     class Meta:
         model = UserData
         fields = ["battery", "gps_lat", "gps_lon", "mood", "updated_at"]
-    
+
     def get_updated_at(self, obj):
         if obj.updated_at:
             dt = obj.updated_at
@@ -22,7 +23,6 @@ class UserDataSerializer(serializers.ModelSerializer):
                 dt = timezone.make_aware(dt, timezone.get_current_timezone())
             return timezone.localtime(dt).strftime("%I:%M %p %d %B %Y").lstrip("0")
         return None
-
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -66,4 +66,4 @@ class AcceptInvitationSerializer(serializers.Serializer):
 
 
 class LogoutSerializer(serializers.Serializer):
-    refresh=serializers.CharField()
+    refresh = serializers.CharField()

@@ -66,10 +66,12 @@ class UserData(models.Model):
     gps_lon = models.FloatField(null=True, blank=True)
     mood = models.CharField(max_length=50, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
-    
+
+
 class UserDataLogger(models.Model):
-    user_data = models.ForeignKey(UserData, on_delete=models.CASCADE, related_name="logs")
+    user_data = models.ForeignKey(
+        UserData, on_delete=models.CASCADE, related_name="logs"
+    )
     battery = models.IntegerField(null=True, blank=True)
     gps_lat = models.FloatField(null=True, blank=True)
     gps_lon = models.FloatField(null=True, blank=True)

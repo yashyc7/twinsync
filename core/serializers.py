@@ -1,6 +1,6 @@
 # core/serializers.py
 from rest_framework import serializers
-from core.models import UserData
+from core.models import UserData, UserDataLogger
 from django.contrib.auth import get_user_model, authenticate
 from rest_framework import status
 from rest_framework.response import Response
@@ -67,3 +67,13 @@ class AcceptInvitationSerializer(serializers.Serializer):
 
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
+
+
+class UserDataLoggerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserDataLogger
+        fields = ["battery", "gps_lat", "gps_lon", "mood", "note", "logged_at"]
+
+
+class DailyUpdateRequestSerializer(serializers.Serializer):
+    date = serializers.DateField()

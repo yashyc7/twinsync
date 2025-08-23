@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from core.models import Invite, PartnerLink, UserData
+from core.models import Invite, PartnerLink, UserData, UserDataLogger
 from core.serializers import (
     UserDataSerializer,
     UserSerializer,
@@ -10,6 +10,8 @@ from core.serializers import (
     AcceptInvitationSerializer,
     GoogleLoginSerializer,
     LogoutSerializer,
+    UserDataLoggerSerializer,
+    DailyUpdateRequestSerializer,
 )
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from google.oauth2 import id_token
@@ -17,6 +19,8 @@ from google.auth.transport import requests
 from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from .utils import create_user_data_log
+from datetime import datetime
+
 
 User = get_user_model()
 
@@ -204,6 +208,31 @@ class UserDataViewset(viewsets.ViewSet):
             )
 
         return Response(UserSerializer(partner).data)
+
+    @extend_schema(
+        description="Get list of updates for a specific date",
+        request=DailyUpdateRequestSerializer,
+        responses={200: UserDataLoggerSerializer(many=True)},
+    )
+    @action(methods=["POST"], detail=False, url_path="daily-updates")
+    def daily_updates(self, request):
+        serializer = DailyUpdateRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Already a datetime.date object
+        selected_date = serializer.validated_data["date"]
+
+        # Get logs for partner (or self, depending on your logic)
+        try:
+            user_data = UserData.objects.get(user=request.user.user_link.partner)
+        except UserData.DoesNotExist:
+            return Response({"error": "No user data found"}, status=404)
+
+        logs = UserDataLogger.objects.filter(
+            user_data=user_data, logged_at__date=selected_date
+        ).order_by("-logged_at")
+
+        return Response(UserDataLoggerSerializer(logs, many=True).data, status=200)
 
 
 class AuthViewSet(viewsets.ViewSet):

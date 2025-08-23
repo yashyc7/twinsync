@@ -75,5 +75,21 @@ class UserDataLoggerSerializer(serializers.ModelSerializer):
         fields = ["battery", "gps_lat", "gps_lon", "mood", "note", "logged_at"]
 
 
+class UserResponseDataLoggerSerializer(serializers.ModelSerializer):
+    logged_at = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserDataLogger
+        fields = ["battery", "gps_lat", "gps_lon", "mood", "note", "logged_at"]
+
+    def get_logged_at(self, obj):
+        if obj.logged_at:
+            dt = obj.logged_at
+            if timezone.is_naive(dt):
+                dt = timezone.make_aware(dt, timezone.get_current_timezone())
+            return timezone.localtime(dt).strftime("%I:%M %p %d %B %Y").lstrip("0")
+        return None
+
+
 class DailyUpdateRequestSerializer(serializers.Serializer):
     date = serializers.DateField()

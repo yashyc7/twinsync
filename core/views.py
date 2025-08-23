@@ -12,6 +12,7 @@ from core.serializers import (
     LogoutSerializer,
     UserDataLoggerSerializer,
     DailyUpdateRequestSerializer,
+    UserResponseDataLoggerSerializer,
 )
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from google.oauth2 import id_token
@@ -212,7 +213,7 @@ class UserDataViewset(viewsets.ViewSet):
     @extend_schema(
         description="Get list of updates for a specific date",
         request=DailyUpdateRequestSerializer,
-        responses={200: UserDataLoggerSerializer(many=True)},
+        responses={200: UserResponseDataLoggerSerializer(many=True)},
     )
     @action(methods=["POST"], detail=False, url_path="daily-updates")
     def daily_updates(self, request):
@@ -232,7 +233,9 @@ class UserDataViewset(viewsets.ViewSet):
             user_data=user_data, logged_at__date=selected_date
         ).order_by("-logged_at")
 
-        return Response(UserDataLoggerSerializer(logs, many=True).data, status=200)
+        return Response(
+            UserResponseDataLoggerSerializer(logs, many=True).data, status=200
+        )
 
 
 class AuthViewSet(viewsets.ViewSet):

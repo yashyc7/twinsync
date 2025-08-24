@@ -52,3 +52,4 @@ dist/
 
 # Vercel/Deployment
 .vercel/
+db.sqlite3

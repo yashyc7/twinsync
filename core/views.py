@@ -1,3 +1,4 @@
+import base64
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -141,10 +142,27 @@ class UserDataViewset(viewsets.ViewSet):
     @action(methods=["POST"], detail=False, url_path="update")
     def update_data(self, request):
         user_data, _ = UserData.objects.get_or_create(user=request.user)
+        
+        # Decode Base64 image if present
+        if "shared_image" in request.data and request.data["shared_image"]:
+            try:
+                image_data = request.data["shared_image"]
+                if image_data.startswith("data:image/jpeg;base64,"):
+                    image_data = image_data.split("base64,")[1]
+
+                decoded_image = base64.b64decode(image_data)
+                request.data["shared_image"] = decoded_image
+            except Exception:
+                return Response({"error": "Invalid base64 image"}, status=400)
 
         serializer = UserDataSerializer(user_data, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            instance = serializer.save()
+    
+            # Save the decoded image to the BinaryField
+            if decoded_image is not None:
+                instance.shared_image = decoded_image
+                instance.save(update_fields=["shared_image"])
 
             # figure out which fields are updated
             field_map = {
@@ -152,6 +170,7 @@ class UserDataViewset(viewsets.ViewSet):
                 "gps_lat": "GPS Latitude",
                 "gps_lon": "GPS Longitude",
                 "mood": "Mood",
+                "shared_image":"Shared Image",
             }
             updated_fields = [
                 field for field in field_map.keys() if field in request.data

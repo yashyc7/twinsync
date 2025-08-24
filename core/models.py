@@ -65,6 +65,7 @@ class UserData(models.Model):
     gps_lat = models.FloatField(null=True, blank=True)
     gps_lon = models.FloatField(null=True, blank=True)
     mood = models.CharField(max_length=50, blank=True, null=True)
+    shared_image=models.BinaryField(blank=True,null=True)
     updated_at = models.DateTimeField(auto_now=True)
 
 
@@ -76,6 +77,7 @@ class UserDataLogger(models.Model):
     gps_lat = models.FloatField(null=True, blank=True)
     gps_lon = models.FloatField(null=True, blank=True)
     mood = models.CharField(max_length=50, blank=True, null=True)
+    shared_image = models.BinaryField(null=True, blank=True)
     note = models.TextField(blank=True, null=True)
     logged_at = models.DateTimeField(auto_now_add=True)
 

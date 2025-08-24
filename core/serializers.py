@@ -5,16 +5,18 @@ from django.contrib.auth import get_user_model, authenticate
 from rest_framework import status
 from rest_framework.response import Response
 from django.utils import timezone
+import base64
 
 User = get_user_model()
 
 
 class UserDataSerializer(serializers.ModelSerializer):
     updated_at = serializers.SerializerMethodField()
+    shared_image=serializers.SerializerMethodField()
 
     class Meta:
         model = UserData
-        fields = ["battery", "gps_lat", "gps_lon", "mood", "updated_at"]
+        fields = ["battery", "gps_lat", "gps_lon", "mood", "shared_image","updated_at"]
 
     def get_updated_at(self, obj):
         if obj.updated_at:
@@ -23,6 +25,14 @@ class UserDataSerializer(serializers.ModelSerializer):
                 dt = timezone.make_aware(dt, timezone.get_current_timezone())
             return timezone.localtime(dt).strftime("%I:%M %p %d %B %Y").lstrip("0")
         return None
+    
+    
+    def get_shared_image(self, obj):
+        if obj.shared_image:
+            encoded = base64.b64encode(obj.shared_image).decode("utf-8")
+            return f"data:image/jpeg;base64,{encoded}"
+        return None
+
 
 
 class UserSerializer(serializers.ModelSerializer):

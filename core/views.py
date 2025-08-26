@@ -142,7 +142,10 @@ class UserDataViewset(viewsets.ViewSet):
     @action(methods=["POST"], detail=False, url_path="update")
     def update_data(self, request):
         user_data, _ = UserData.objects.get_or_create(user=request.user)
-        
+
+        decoded_image = None
+        image_updated = False
+
         # Decode Base64 image if present
         if "shared_image" in request.data and request.data["shared_image"]:
             try:
@@ -157,12 +160,16 @@ class UserDataViewset(viewsets.ViewSet):
 
         serializer = UserDataSerializer(user_data, data=request.data, partial=True)
         if serializer.is_valid():
+            # keep old values for comparison
+            old_values = {f: getattr(user_data, f) for f in serializer.fields}
+
             instance = serializer.save()
-    
-            # Save the decoded image to the BinaryField
-            if decoded_image is not None:
+
+            # Save image only if actually changed
+            if decoded_image is not None and user_data.shared_image != decoded_image:
                 instance.shared_image = decoded_image
                 instance.save(update_fields=["shared_image"])
+                image_updated = True
 
             # figure out which fields are updated
             field_map = {
@@ -170,24 +177,35 @@ class UserDataViewset(viewsets.ViewSet):
                 "gps_lat": "GPS Latitude",
                 "gps_lon": "GPS Longitude",
                 "mood": "Mood",
-                "shared_image":"Shared Image",
+                "shared_image": "Shared Image",
             }
-            updated_fields = [
-                field for field in field_map.keys() if field in request.data
-            ]
+
+            updated_fields = []
+            for field in field_map.keys():
+                if field in request.data:
+                    new_value = getattr(instance, field)
+                    old_value = old_values.get(field)
+
+                    if field == "shared_image":
+                        if image_updated:
+                            updated_fields.append(field)
+                    else:
+                        if new_value != old_value:
+                            updated_fields.append(field)
 
             # build note string
             if len(updated_fields) == 1:
                 note = f"{field_map[updated_fields[0]]} updated"
-            else:
+            elif len(updated_fields) > 1:
                 note = ", ".join([field_map[f] for f in updated_fields]) + " updated"
+            else:
+                note = None
 
-            # prepare kwargs only for updated fields
-            log_kwargs = {field: request.data.get(field) for field in updated_fields}
-            log_kwargs["note"] = note
-
-            # create log entry
-            create_user_data_log(user_data=user_data, **log_kwargs)
+            # create log entry only if something changed
+            if updated_fields:
+                log_kwargs = {field: getattr(instance, field) for field in updated_fields}
+                log_kwargs["note"] = note
+                create_user_data_log(user_data=user_data, **log_kwargs)
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -210,8 +228,11 @@ class UserDataViewset(viewsets.ViewSet):
 
         # Adding the self current mood to it
         userdata, _ = UserData.objects.get_or_create(user=request.user)
+        partner_logger_obj=UserDataLogger.objects.filter(user_data=partner_data).latest("logged_at")
+        
         response_data["self_mood"] = userdata.mood
         response_data["display_name"] = partner_data.user.display_name
+        response_data["partner_latest_note"]=partner_logger_obj.note
 
         return Response(response_data)
 
